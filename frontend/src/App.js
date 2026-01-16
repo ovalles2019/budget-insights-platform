@@ -51,7 +51,7 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>💰 Budget Insights Platform</h1>
+        <h1>Budget Insights</h1>
         <p>Cloud-First Personal Finance Management</p>
       </header>
 

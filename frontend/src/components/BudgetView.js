@@ -57,15 +57,26 @@ const BudgetView = ({ transactions, analyticsUrl, userId }) => {
     <div>
       <div className="card">
         <h2>Budget Limits</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.25rem' }}>
           {Object.entries(budgetLimits).map(([category, limit]) => (
-            <div key={category} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label style={{ fontWeight: 600 }}>{category}</label>
+            <div key={category} style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+              <label style={{ fontWeight: 500, fontSize: '0.875rem', color: '#86868b', letterSpacing: '-0.011em' }}>{category}</label>
               <input
                 type="number"
                 value={limit}
                 onChange={(e) => updateBudgetLimit(category, e.target.value)}
-                style={{ padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                style={{ 
+                  padding: '0.75rem 1rem', 
+                  border: '0.5px solid rgba(0, 0, 0, 0.1)', 
+                  borderRadius: '12px',
+                  fontSize: '0.9375rem',
+                  background: '#ffffff',
+                  color: '#1d1d1f',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  outline: 'none'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#0071e3'}
+                onBlur={(e) => e.target.style.borderColor = 'rgba(0, 0, 0, 0.1)'}
               />
             </div>
           ))}
@@ -73,15 +84,20 @@ const BudgetView = ({ transactions, analyticsUrl, userId }) => {
         <button
           onClick={loadBudgetStatus}
           style={{
-            marginTop: '1rem',
+            marginTop: '1.5rem',
             padding: '0.75rem 1.5rem',
-            background: '#667eea',
-            color: 'white',
+            background: '#0071e3',
+            color: '#ffffff',
             border: 'none',
-            borderRadius: '8px',
+            borderRadius: '20px',
             cursor: 'pointer',
-            fontSize: '1rem'
+            fontSize: '0.9375rem',
+            fontWeight: 500,
+            letterSpacing: '-0.011em',
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
           }}
+          onMouseEnter={(e) => e.target.style.background = '#0077ed'}
+          onMouseLeave={(e) => e.target.style.background = '#0071e3'}
         >
           Update Budget
         </button>
@@ -91,13 +107,20 @@ const BudgetView = ({ transactions, analyticsUrl, userId }) => {
         <h2>Budget Status</h2>
         <ResponsiveContainer width="100%" height={400}>
           <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="category" angle={-45} textAnchor="end" height={100} />
-            <YAxis />
-            <Tooltip />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e7" />
+            <XAxis dataKey="category" angle={-45} textAnchor="end" height={100} stroke="#86868b" fontSize={12} />
+            <YAxis stroke="#86868b" fontSize={12} />
+            <Tooltip 
+              contentStyle={{ 
+                background: '#ffffff', 
+                border: '0.5px solid rgba(0, 0, 0, 0.1)', 
+                borderRadius: '12px',
+                padding: '0.75rem'
+              }} 
+            />
             <Legend />
-            <Bar dataKey="spent" fill="#667eea" name="Spent" />
-            <Bar dataKey="remaining" fill="#10b981" name="Remaining" />
+            <Bar dataKey="spent" fill="#0071e3" name="Spent" radius={[8, 8, 0, 0]} />
+            <Bar dataKey="remaining" fill="#34c759" name="Remaining" radius={[8, 8, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

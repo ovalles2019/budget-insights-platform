@@ -43,7 +43,7 @@ const Dashboard = ({ transactions, analyticsUrl, userId }) => {
     value: parseFloat(value.toFixed(2))
   }));
 
-  const COLORS = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe', '#43e97b', '#fa709a', '#fee140'];
+  const COLORS = ['#0071e3', '#34c759', '#ff9500', '#af52de', '#ff2d55', '#5ac8fa', '#ffcc00', '#8e8e93'];
 
   // Monthly spending data
   const monthlyData = transactions.reduce((acc, t) => {
@@ -105,12 +105,12 @@ const Dashboard = ({ transactions, analyticsUrl, userId }) => {
         <h2>Monthly Spending Trend</h2>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={lineData}>
-            <CartesianGrid strokeDasharray="3 3" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e7" />
             <XAxis dataKey="month" />
             <YAxis />
             <Tooltip />
             <Legend />
-            <Line type="monotone" dataKey="spending" stroke="#667eea" strokeWidth={2} />
+            <Line type="monotone" dataKey="spending" stroke="#0071e3" strokeWidth={2.5} dot={{ fill: '#0071e3', r: 4 }} activeDot={{ r: 6 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
