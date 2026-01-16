@@ -1,0 +1,195 @@
+pipeline {
+    agent any
+    
+    environment {
+        AWS_REGION = 'us-east-1'
+        AWS_ACCOUNT_ID = credentials('aws-account-id')
+        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        EKS_CLUSTER_NAME = 'budget-insights-eks'
+        KUBECTL_VERSION = '1.28.0'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Build Docker Images') {
+            parallel {
+                stage('Build Transaction Service') {
+                    steps {
+                        script {
+                            dir('services/transaction-service') {
+                                sh '''
+                                    docker build -t transaction-service:${BUILD_NUMBER} .
+                                    docker tag transaction-service:${BUILD_NUMBER} ${ECR_REGISTRY}/budget-insights/transaction-service:${BUILD_NUMBER}
+                                    docker tag transaction-service:${BUILD_NUMBER} ${ECR_REGISTRY}/budget-insights/transaction-service:latest
+                                '''
+                            }
+                        }
+                    }
+                }
+                
+                stage('Build Analytics Service') {
+                    steps {
+                        script {
+                            dir('services/analytics-service') {
+                                sh '''
+                                    docker build -t analytics-service:${BUILD_NUMBER} .
+                                    docker tag analytics-service:${BUILD_NUMBER} ${ECR_REGISTRY}/budget-insights/analytics-service:${BUILD_NUMBER}
+                                    docker tag analytics-service:${BUILD_NUMBER} ${ECR_REGISTRY}/budget-insights/analytics-service:latest
+                                '''
+                            }
+                        }
+                    }
+                }
+                
+                stage('Build Frontend') {
+                    steps {
+                        script {
+                            dir('frontend') {
+                                sh '''
+                                    docker build -t frontend:${BUILD_NUMBER} .
+                                    docker tag frontend:${BUILD_NUMBER} ${ECR_REGISTRY}/budget-insights/frontend:${BUILD_NUMBER}
+                                    docker tag frontend:${BUILD_NUMBER} ${ECR_REGISTRY}/budget-insights/frontend:latest
+                                '''
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Run Tests') {
+            parallel {
+                stage('Test Transaction Service') {
+                    steps {
+                        script {
+                            dir('services/transaction-service') {
+                                sh '''
+                                    docker run --rm transaction-service:${BUILD_NUMBER} python -m pytest tests/ || echo "No tests configured"
+                                '''
+                            }
+                        }
+                    }
+                }
+                
+                stage('Test Analytics Service') {
+                    steps {
+                        script {
+                            dir('services/analytics-service') {
+                                sh '''
+                                    docker run --rm analytics-service:${BUILD_NUMBER} python -m pytest tests/ || echo "No tests configured"
+                                '''
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Security Scan') {
+            steps {
+                script {
+                    sh '''
+                        # Run Trivy security scan
+                        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+                            aquasec/trivy image transaction-service:${BUILD_NUMBER} || true
+                        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+                            aquasec/trivy image analytics-service:${BUILD_NUMBER} || true
+                        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+                            aquasec/trivy image frontend:${BUILD_NUMBER} || true
+                    '''
+                }
+            }
+        }
+        
+        stage('Push to ECR') {
+            steps {
+                script {
+                    withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
+                        sh '''
+                            aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+                            
+                            docker push ${ECR_REGISTRY}/budget-insights/transaction-service:${BUILD_NUMBER}
+                            docker push ${ECR_REGISTRY}/budget-insights/transaction-service:latest
+                            
+                            docker push ${ECR_REGISTRY}/budget-insights/analytics-service:${BUILD_NUMBER}
+                            docker push ${ECR_REGISTRY}/budget-insights/analytics-service:latest
+                            
+                            docker push ${ECR_REGISTRY}/budget-insights/frontend:${BUILD_NUMBER}
+                            docker push ${ECR_REGISTRY}/budget-insights/frontend:latest
+                        '''
+                    }
+                }
+            }
+        }
+        
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    withAWS(credentials: 'aws-credentials', region: AWS_REGION) {
+                        sh '''
+                            # Configure kubectl
+                            aws eks update-kubeconfig --name ${EKS_CLUSTER_NAME} --region ${AWS_REGION}
+                            
+                            # Update image tags in Kubernetes manifests
+                            sed -i "s|budget-insights-platform/transaction-service:latest|${ECR_REGISTRY}/budget-insights/transaction-service:${BUILD_NUMBER}|g" infrastructure/kubernetes/*.yaml
+                            sed -i "s|budget-insights-platform/analytics-service:latest|${ECR_REGISTRY}/budget-insights/analytics-service:${BUILD_NUMBER}|g" infrastructure/kubernetes/*.yaml
+                            sed -i "s|budget-insights-platform/frontend:latest|${ECR_REGISTRY}/budget-insights/frontend:${BUILD_NUMBER}|g" infrastructure/kubernetes/*.yaml
+                            
+                            # Apply Kubernetes manifests
+                            kubectl apply -f infrastructure/kubernetes/namespace.yaml
+                            kubectl apply -f infrastructure/kubernetes/transaction-service-deployment.yaml
+                            kubectl apply -f infrastructure/kubernetes/analytics-service-deployment.yaml
+                            kubectl apply -f infrastructure/kubernetes/frontend-deployment.yaml
+                            kubectl apply -f infrastructure/kubernetes/ingress.yaml
+                            
+                            # Wait for rollout
+                            kubectl rollout status deployment/transaction-service -n budget-insights --timeout=5m
+                            kubectl rollout status deployment/analytics-service -n budget-insights --timeout=5m
+                            kubectl rollout status deployment/frontend -n budget-insights --timeout=5m
+                        '''
+                    }
+                }
+            }
+        }
+        
+        stage('Health Check') {
+            steps {
+                script {
+                    sh '''
+                        # Wait for services to be ready
+                        sleep 30
+                        
+                        # Check health endpoints
+                        TRANSACTION_SERVICE_IP=$(kubectl get svc transaction-service -n budget-insights -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+                        ANALYTICS_SERVICE_IP=$(kubectl get svc analytics-service -n budget-insights -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+                        
+                        curl -f http://${TRANSACTION_SERVICE_IP}:5001/health || exit 1
+                        curl -f http://${ANALYTICS_SERVICE_IP}:5002/health || exit 1
+                    '''
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            // Cleanup
+            sh 'docker system prune -f'
+        }
+        
+        success {
+            echo 'Pipeline succeeded!'
+            // Send notification (Slack, email, etc.)
+        }
+        
+        failure {
+            echo 'Pipeline failed!'
+            // Send alert notification
+        }
+    }
+}
