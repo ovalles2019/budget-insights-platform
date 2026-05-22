@@ -6,8 +6,13 @@ import BudgetView from './components/BudgetView';
 import AnomaliesView from './components/AnomaliesView';
 import InsightsView from './components/InsightsView';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001';
-const ANALYTICS_BASE_URL = process.env.REACT_APP_ANALYTICS_BASE_URL || 'http://localhost:5002';
+const IS_DEMO = process.env.REACT_APP_DEMO_MODE === 'true';
+const API_BASE_URL = IS_DEMO
+  ? ''
+  : process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001';
+const ANALYTICS_BASE_URL = IS_DEMO
+  ? ''
+  : process.env.REACT_APP_ANALYTICS_BASE_URL || 'http://localhost:5002';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -53,6 +58,12 @@ function App() {
       <header className="App-header">
         <h1>Budget Insights</h1>
         <p>Cloud-First Personal Finance Management</p>
+        {IS_DEMO && (
+          <p className="demo-banner">
+            Portfolio demo — microservices on Render with seeded sample transactions. Data resets on
+            redeploy.
+          </p>
+        )}
       </header>
 
       <nav className="App-nav">

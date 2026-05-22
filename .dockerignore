@@ -1,0 +1,9 @@
+.git
+frontend/node_modules
+**/__pycache__
+**/*.pyc
+.ruff_cache
+*.md
+!README.md
+infrastructure
+ci-cd

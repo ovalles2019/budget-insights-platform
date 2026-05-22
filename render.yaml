@@ -1,0 +1,12 @@
+# Deploy portfolio demo on Render — New Blueprint → this repo
+services:
+  - type: web
+    name: budget-insights-demo
+    runtime: docker
+    dockerfilePath: ./deploy/render/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: BUDGET_INSIGHTS_DEMO
+        value: "1"

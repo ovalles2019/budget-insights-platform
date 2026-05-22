@@ -1,5 +1,7 @@
 # Cloud Budgeting + Insights Platform
 
+[![Live demo](https://img.shields.io/badge/demo-live-10b981?style=flat-square)](https://budget-insights-demo.onrender.com/)
+
 A production-ready, cloud-first personal finance management platform built with microservices architecture, demonstrating Capital One-style engineering practices.
 
 ## 🏗️ Architecture
@@ -113,6 +115,14 @@ npm start
 ```bash
 docker-compose up -d
 ```
+
+## Live demo (portfolio)
+
+Full **React dashboard** with **transaction-service** and **analytics-service** behind nginx on one URL:
+
+**[budget-insights-demo.onrender.com](https://budget-insights-demo.onrender.com/)**
+
+Deploy on Render: **New → Blueprint** → this repo (`render.yaml` uses `deploy/render/Dockerfile`). Demo seeds 50 mock transactions on boot. Health: `GET /health`.
 
 ## 🐳 Building Docker Images
 
