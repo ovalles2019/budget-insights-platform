@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
-import Dashboard from './components/Dashboard';
-import BudgetView from './components/BudgetView';
-import AnomaliesView from './components/AnomaliesView';
-import InsightsView from './components/InsightsView';
+import Overview from './components/Overview';
 
 const IS_DEMO = process.env.REACT_APP_DEMO_MODE === 'true';
 const API_BASE_URL = IS_DEMO
@@ -15,20 +12,15 @@ const ANALYTICS_BASE_URL = IS_DEMO
   : process.env.REACT_APP_ANALYTICS_BASE_URL || 'http://localhost:5002';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
   const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [userId] = useState('default_user');
-
-  useEffect(() => {
-    loadTransactions();
-  }, []);
 
   const loadTransactions = async () => {
     setLoading(true);
     try {
       const response = await axios.get(`${API_BASE_URL}/api/v1/transactions`, {
-        params: { user_id: userId }
+        params: { user_id: userId },
       });
       setTransactions(response.data.transactions || []);
     } catch (error) {
@@ -38,92 +30,43 @@ function App() {
     }
   };
 
-  const importMockData = async () => {
-    setLoading(true);
-    try {
-      await axios.post(`${API_BASE_URL}/api/v1/transactions/import`, {
-        user_id: userId,
-        count: 50
-      });
-      await loadTransactions();
-    } catch (error) {
-      console.error('Error importing data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    loadTransactions();
+  }, []);
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>Budget Insights</h1>
-        <p>Cloud-First Personal Finance Management</p>
-        {IS_DEMO && (
-          <p className="demo-banner">
-            Portfolio demo — microservices on Render with seeded sample transactions. Data resets on
-            redeploy.
-          </p>
-        )}
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">
+            BI
+          </span>
+          <div>
+            <h1>Budget Insights</h1>
+            <p>Your spending at a glance</p>
+          </div>
+        </div>
+        {IS_DEMO && <span className="demo-pill">Live demo</span>}
       </header>
 
-      <nav className="App-nav">
-        <button
-          className={activeTab === 'dashboard' ? 'active' : ''}
-          onClick={() => setActiveTab('dashboard')}
-        >
-          Dashboard
-        </button>
-        <button
-          className={activeTab === 'budget' ? 'active' : ''}
-          onClick={() => setActiveTab('budget')}
-        >
-          Budget
-        </button>
-        <button
-          className={activeTab === 'anomalies' ? 'active' : ''}
-          onClick={() => setActiveTab('anomalies')}
-        >
-          Anomalies
-        </button>
-        <button
-          className={activeTab === 'insights' ? 'active' : ''}
-          onClick={() => setActiveTab('insights')}
-        >
-          Insights
-        </button>
-        <button className="import-btn" onClick={importMockData} disabled={loading}>
-          {loading ? 'Loading...' : 'Import Mock Data'}
-        </button>
-      </nav>
-
-      <main className="App-main">
-        {activeTab === 'dashboard' && (
-          <Dashboard
-            transactions={transactions}
-            analyticsUrl={ANALYTICS_BASE_URL}
-            userId={userId}
-          />
-        )}
-        {activeTab === 'budget' && (
-          <BudgetView
-            transactions={transactions}
-            analyticsUrl={ANALYTICS_BASE_URL}
-            userId={userId}
-          />
-        )}
-        {activeTab === 'anomalies' && (
-          <AnomaliesView
-            analyticsUrl={ANALYTICS_BASE_URL}
-            userId={userId}
-          />
-        )}
-        {activeTab === 'insights' && (
-          <InsightsView
-            analyticsUrl={ANALYTICS_BASE_URL}
-            userId={userId}
-          />
-        )}
+      <main className="main-content">
+        <Overview
+          transactions={transactions}
+          analyticsUrl={ANALYTICS_BASE_URL}
+          userId={userId}
+          onRefresh={loadTransactions}
+          refreshing={loading}
+        />
       </main>
+
+      <footer className="site-footer">
+        <span>Transaction + analytics microservices · Flask & React</span>
+        {!IS_DEMO && (
+          <button type="button" className="btn-ghost" onClick={loadTransactions} disabled={loading}>
+            Reload data
+          </button>
+        )}
+      </footer>
     </div>
   );
 }
